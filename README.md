@@ -30,7 +30,7 @@ Sorting 500+ items by Title or Artist can cause frame drops (jank). We use Flutt
 
 ## 🎨 3 Key Design Decisions
 
-1.  **Glassmorphism & Ambient Depth**: We avoided flat backgrounds in favor of radial gradients and "Glass Shell" search bars. This provides a sense of depth similar to flagship OS interfaces (iOS/OxygenOS).
+1.  **Glassmorphism & Ambient Depth**: We avoided flat backgrounds in favor of radial gradients and "Glass Shell" search bars.
 2.  **Sticky Group Headers**: To help users navigate large libraries, we implemented sorting-based grouping. Letter-based sticky headers provide a clear "landmark" as the user scrolls.
 3.  **Declarative Navigation (GoRouter)**: Using `GoRouter` allows us to handle deep links and pass complex objects between screens with a clean, path-based URL structure, rather than fragile manual Navigator stacks.
 
