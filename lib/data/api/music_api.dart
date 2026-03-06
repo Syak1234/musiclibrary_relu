@@ -55,7 +55,7 @@ class MusicApi {
       queryParameters: {'q': query, 'index': startIndex, 'limit': limit},
     );
 
-    print(response.data.toString());
+    // print(response.data.toString());
     // log(response.data.toString());
     final data = response.data as Map<String, dynamic>;
     final tracks = data['tracks'] as List<dynamic>? ?? [];

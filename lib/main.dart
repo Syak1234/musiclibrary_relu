@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,18 +10,15 @@ import 'core/theme/app_theme.dart';
 import 'core/utills/routes.dart';
 import 'viewmodel/library/library_bloc.dart';
 import 'viewmodel/connection/connection_bloc.dart';
-import 'view/screens/library_screen.dart';
 import 'view/widgets/music_error_widget.dart';
 
 void main() {
   runZonedGuarded(
     () {
       ErrorWidget.builder = (FlutterErrorDetails d) {
-        return Material(
-          // debugShowCheckedModeBanner: false,
-          child: MusicErrorWidget(d),
-        );
+        return Material(child: MusicErrorWidget(d));
       };
+
       runApp(const MusicLibraryApp());
     },
     (error, stack) {

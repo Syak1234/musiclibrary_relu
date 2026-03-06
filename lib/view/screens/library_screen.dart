@@ -95,7 +95,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
         builder: (context, connectionState) {
           return Stack(
             children: [
-              // Elegant Corner Glow
               Positioned(
                 top: -120,
                 right: -80,
@@ -342,7 +341,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         children: [
           CustomScrollView(
             controller: _scroll,
-            physics: const BouncingScrollPhysics(),
+            physics: AlwaysScrollableScrollPhysics(),
             slivers: [
               ...sortfn(s.tracks),
               if (s.status == LibraryStatus.loading)
