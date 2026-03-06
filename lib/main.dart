@@ -8,18 +8,15 @@ import 'core/di/service_locator.dart';
 import 'core/theme/app_theme.dart';
 import 'viewmodel/library/library_bloc.dart';
 import 'view/screens/library_screen.dart';
+import 'view/widgets/music_error_widget.dart';
 
 void main() {
   runZonedGuarded(
     () {
-      ErrorWidget.builder = (FlutterErrorDetails details) {
-        return Material(
-          child: Center(
-            child: Text(
-              'An error occurred: ${details.exception}',
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
+      ErrorWidget.builder = (FlutterErrorDetails d) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: MusicErrorWidget(d),
         );
       };
       runApp(const MusicLibraryApp());
