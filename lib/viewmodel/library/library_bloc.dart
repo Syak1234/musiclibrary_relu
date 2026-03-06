@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:musiclibrary_relu/core/utills/app_strings.dart';
 import 'package:musiclibrary_relu/core/utills/global_exception.dart';
@@ -9,7 +8,8 @@ import 'library_state.dart';
 
 class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   final MusicRepositoryInterface _repository;
-  Timer? _searchDebounce;
+  Timer? _dbt;
+  int _sv = 0;
 
   LibraryBloc({required MusicRepositoryInterface repository})
     : _repository = repository,
@@ -19,136 +19,85 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     on<ClearSearch>(_onClearSearch);
   }
 
-  Future<void> _onLoadNextPage(
-    LoadNextPage event,
-    Emitter<LibraryState> emit,
-  ) async {
+  Future<void> _onLoadNextPage(LoadNextPage event, Emitter<LibraryState> emit) async {
     if (state.hasend || state.status == LibraryStatus.loading) return;
-
     emit(state.copyWith(status: LibraryStatus.loading));
-
     try {
       if (state.isSearching) {
-        final newTracks = await _repository.searchTracks(
-          state.searchQuery,
-          state.searchOffset,
-        );
-
-        final allTracks = [...state.tracks, ...newTracks];
-        _removeDuplicates(allTracks);
-
-        emit(
-          state.copyWith(
-            status: LibraryStatus.loaded,
-            tracks: allTracks,
-            searchOffset: state.searchOffset + 50,
-            hasend: newTracks.isEmpty || newTracks.length < 50,
-          ),
-        );
+        final nw = await _repository.searchTracks(state.searchQuery, state.searchOffset);
+        final all = [...state.tracks, ...nw];
+        _dedup(all);
+        emit(state.copyWith(
+          status: LibraryStatus.loaded,
+          tracks: all,
+          searchOffset: state.searchOffset + 50,
+          hasend: nw.isEmpty || nw.length < 50,
+        ));
       } else {
-        log(state.currentPage.toString() + "page");
-        final newTracks = await _repository.loadPage(
-          state.currentPage,
-          limit: event.limit,
-        );
-
-        final allTracks = [...state.tracks, ...newTracks];
-        _removeDuplicates(allTracks);
-
-        emit(
-          state.copyWith(
-            status: LibraryStatus.loaded,
-            tracks: allTracks,
-            currentPage: state.currentPage + 1,
-            hasend: newTracks.isEmpty,
-          ),
-        );
+        final nw = await _repository.loadPage(state.currentPage, limit: event.limit);
+        final all = [...state.tracks, ...nw];
+        _dedup(all);
+        emit(state.copyWith(
+          status: LibraryStatus.loaded,
+          tracks: all,
+          currentPage: state.currentPage + 1,
+          hasend: nw.isEmpty,
+        ));
       }
     } on GlobalException catch (e) {
-      emit(
-        state.copyWith(status: LibraryStatus.error, errorMessage: e.message),
-      );
-    } catch (e) {
-      emit(
-        state.copyWith(
-          status: LibraryStatus.error,
-          errorMessage: AppStrings.somethingWentWrong,
-        ),
-      );
+      emit(state.copyWith(status: LibraryStatus.error, errorMessage: e.message));
+    } catch (_) {
+      emit(state.copyWith(status: LibraryStatus.error, errorMessage: AppStrings.somethingWentWrong));
     }
   }
 
-  Future<void> _onSearchQueryChanged(
-    SearchQueryChanged event,
-    Emitter<LibraryState> emit,
-  ) async {
-    _searchDebounce?.cancel();
+  Future<void> _onSearchQueryChanged(SearchQueryChanged event, Emitter<LibraryState> emit) async {
+    _dbt?.cancel();
+    _sv++;
+    final v = _sv;
+    final q = event.query.trim();
 
-    final query = event.query.trim();
+    if (q.isEmpty) { add(ClearSearch()); return; }
 
-    if (query.isEmpty) {
-      add(ClearSearch());
-      return;
-    }
+    final cp = Completer<void>();
+    _dbt = Timer(const Duration(milliseconds: 400), cp.complete);
+    await cp.future;
 
-    final completer = Completer<void>();
+    if (v != _sv) return;
 
-    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
-      completer.complete();
-    });
-
-    await completer.future;
-
-    emit(
-      const LibraryState().copyWith(
-        status: LibraryStatus.loading,
-        searchQuery: query,
-      ),
-    );
+    emit(const LibraryState().copyWith(status: LibraryStatus.loading, searchQuery: q));
 
     try {
-      final results = await _repository.searchTracks(query, 0);
-
-      emit(
-        state.copyWith(
-          status: LibraryStatus.loaded,
-          tracks: results,
-          searchOffset: 50,
-          hasend: results.isEmpty || results.length < 50,
-        ),
-      );
+      final res = await _repository.searchTracks(q, 0);
+      if (v != _sv) return;
+      emit(state.copyWith(
+        status: LibraryStatus.loaded,
+        tracks: res,
+        searchOffset: 50,
+        hasend: res.isEmpty || res.length < 50,
+      ));
     } on GlobalException catch (e) {
-      emit(
-        state.copyWith(status: LibraryStatus.error, errorMessage: e.message),
-      );
-    } catch (e) {
-      emit(
-        state.copyWith(
-          status: LibraryStatus.error,
-          errorMessage: AppStrings.searchFailed,
-        ),
-      );
+      emit(state.copyWith(status: LibraryStatus.error, errorMessage: e.message));
+    } catch (_) {
+      emit(state.copyWith(status: LibraryStatus.error, errorMessage: AppStrings.searchFailed));
     }
   }
 
-  Future<void> _onClearSearch(
-    ClearSearch event,
-    Emitter<LibraryState> emit,
-  ) async {
-    _searchDebounce?.cancel();
-
+  Future<void> _onClearSearch(ClearSearch event, Emitter<LibraryState> emit) async {
+    _dbt?.cancel();
+    _sv++;
     emit(const LibraryState());
     add(LoadNextPage());
   }
 
-  void _removeDuplicates(List allTracks) {
+  void _dedup(List all) {
     final seen = <int>{};
-    allTracks.retainWhere((track) => seen.add(track.id));
+    all.retainWhere((t) => seen.add(t.id));
   }
 
   @override
   Future<void> close() {
-    _searchDebounce?.cancel();
+    _dbt?.cancel();
     return super.close();
   }
 }

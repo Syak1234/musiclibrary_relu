@@ -35,6 +35,8 @@ class TrackTile extends StatelessWidget {
         imageUrl: track.albumCoverSmall,
         width: 52,
         height: 52,
+        memCacheWidth: 156,
+        memCacheHeight: 156,
         fit: BoxFit.cover,
         placeholder: (_, _) => Container(
           width: 52,

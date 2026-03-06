@@ -13,6 +13,44 @@ import 'track_detail_screen.dart';
 
 enum GroupBy { title, artist }
 
+class _FI extends StatefulWidget {
+  final int idx;
+  final Widget child;
+  const _FI({required super.key, required this.idx, required this.child});
+  @override
+  State<_FI> createState() => _FIS();
+}
+
+class _FIS extends State<_FI> with SingleTickerProviderStateMixin {
+  late final AnimationController _ac;
+  late final Animation<double> _op;
+  late final Animation<Offset> _sl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
+    _op = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
+    _sl = Tween(begin: const Offset(0, 0.12), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _ac, curve: Curves.easeOutCubic));
+    Future.delayed(Duration(milliseconds: (widget.idx % 7) * 48), () {
+      if (mounted) _ac.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ac.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: _op,
+    child: SlideTransition(position: _sl, child: widget.child),
+  );
+}
+
 class _HD extends SliverPersistentHeaderDelegate {
   final String letter;
   _HD(this.letter);
@@ -38,6 +76,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _search = TextEditingController();
   var _by = GroupBy.title;
   final _lim = 50;
+  bool _st = false;
+  int? _cl;
+  GroupBy? _cb;
+  List<Track>? _cs;
 
   @override
   void initState() {
@@ -47,8 +89,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _onScroll() {
+    if (_st) return;
     if (_scroll.position.maxScrollExtent - _scroll.position.pixels < 600) {
+      _st = true;
       context.read<LibraryBloc>().add(LoadNextPage(limit: _lim));
+      Future.delayed(const Duration(seconds: 2), () => _st = false);
     }
   }
 
@@ -165,14 +210,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
           'Track',
           Icons.music_note_rounded,
           _by == GroupBy.title,
-          () => setState(() => _by = GroupBy.title),
+          () => setState(() { _by = GroupBy.title; _cs = null; }),
         ),
         const SizedBox(width: 8),
         _pill(
           'Artist',
           Icons.person_rounded,
           _by == GroupBy.artist,
-          () => setState(() => _by = GroupBy.artist),
+          () => setState(() { _by = GroupBy.artist; _cs = null; }),
         ),
       ],
     ),
@@ -251,24 +296,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
     },
   );
 
-  List<Widget> sortfn(List<Track> tracks) {
-    final all = List<Track>.from(tracks);
+  List<Track> _sorted(List<Track> t) {
+    if (_cs != null && _cl == t.length && _cb == _by) return _cs!;
+    final a = List<Track>.from(t);
     _by == GroupBy.title
-        ? all.sort(
-            (a, b) => a.titleShort.toUpperCase().compareTo(
-              b.titleShort.toUpperCase(),
-            ),
-          )
-        : all.sort((a, b) {
-            final c = a.artistName.toUpperCase().compareTo(
-              b.artistName.toUpperCase(),
-            );
-            return c != 0
-                ? c
-                : a.titleShort.toUpperCase().compareTo(
-                    b.titleShort.toUpperCase(),
-                  );
+        ? a.sort((x, y) => x.titleShort.toUpperCase().compareTo(y.titleShort.toUpperCase()))
+        : a.sort((x, y) {
+            final c = x.artistName.toUpperCase().compareTo(y.artistName.toUpperCase());
+            return c != 0 ? c : x.titleShort.toUpperCase().compareTo(y.titleShort.toUpperCase());
           });
+    _cl = t.length;
+    _cb = _by;
+    _cs = a;
+    return a;
+  }
+
+  List<Widget> sortfn(List<Track> tracks) {
+    final all = _sorted(tracks);
 
     final out = <Widget>[];
     String? last;
@@ -288,8 +332,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ..add(
               SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (_, idx) =>
-                      TrackTile(track: g[idx], onTap: () => _open(g[idx])),
+                  (_, idx) => _FI(
+                    key: ValueKey(g[idx].id),
+                    idx: idx,
+                    child: TrackTile(track: g[idx], onTap: () => _open(g[idx])),
+                  ),
                   childCount: g.length,
                 ),
               ),
