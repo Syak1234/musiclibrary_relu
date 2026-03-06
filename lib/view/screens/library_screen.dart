@@ -13,7 +13,6 @@ import 'track_detail_screen.dart';
 
 enum GroupBy { title, artist }
 
-
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
   @override
@@ -51,7 +50,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final px = _scroll.position.pixels;
     var l = _glet.first;
     for (int i = 1; i < _goff.length; i++) {
-      if (_goff[i] <= px) l = _glet[i]; else break;
+      if (_goff[i] <= px)
+        l = _glet[i];
+      else
+        break;
     }
     if (_letter.value != l) _letter.value = l;
   }
@@ -240,7 +242,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
               )
             : _err(ctx, s.errorMessage);
       }
-      if (s.tracks.isEmpty && s.status == LibraryStatus.loaded) return _empty();
+      if (s.tracks.isEmpty && s.status == LibraryStatus.loaded)
+        return _empty(s);
       return Stack(
         children: [
           CustomScrollView(
@@ -308,7 +311,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     int from = 0;
     for (int i = 0; i <= sorted.length; i++) {
       final cur = i < sorted.length
-          ? (_by == GroupBy.title ? sorted[i].groupLetter : sorted[i].artistGroupLetter)
+          ? (_by == GroupBy.title
+                ? sorted[i].groupLetter
+                : sorted[i].artistGroupLetter)
           : null;
       if (cur != last) {
         if (last != null) {
@@ -428,22 +433,40 @@ class _LibraryScreenState extends State<LibraryScreen> {
     ),
   );
 
-  Widget _empty() => Center(
+  Widget _empty(LibraryState s) => Center(
     child: Padding(
       padding: const EdgeInsets.all(40),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.music_off_rounded,
-            size: 48,
+            s.isSearching ? Icons.search_off_rounded : Icons.music_off_rounded,
+            size: 52,
             color: AppTheme.textSecondary,
           ),
           const SizedBox(height: 16),
           Text(
-            AppStrings.noTracksFound,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 15),
+            s.isSearching
+                ? 'No results for "${s.searchQuery}"'
+                : AppStrings.noTracksFound,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
           ),
+          if (s.isSearching) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Try a different song or artist name.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.textSecondary.withValues(alpha: 0.6),
+                fontSize: 12,
+              ),
+            ),
+          ],
         ],
       ),
     ),

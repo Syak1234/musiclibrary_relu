@@ -14,9 +14,9 @@ void main() {
   runZonedGuarded(
     () {
       ErrorWidget.builder = (FlutterErrorDetails d) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: MusicErrorWidget(d),
+        return Material(
+          // debugShowCheckedModeBanner: false,
+          child: MusicErrorWidget(d),
         );
       };
       runApp(const MusicLibraryApp());

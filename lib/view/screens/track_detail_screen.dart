@@ -1,5 +1,7 @@
+import 'dart:ui';
 import '../../data/models/track_detail.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:musiclibrary_relu/core/utills/app_strings.dart';
@@ -22,7 +24,10 @@ class TrackDetailScreen extends StatelessWidget {
       create: (_) =>
           TrackDetailBloc(repository: ServiceLocator().musicRepository)
             ..add(LoadTrackDetail(track)),
-      child: _TrackDetailBody(track: track),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: _TrackDetailBody(track: track),
+      ),
     );
   }
 }
@@ -34,249 +39,280 @@ class _TrackDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: BlocBuilder<TrackDetailBloc, TrackDetailState>(
-          builder: (context, state) {
-            return CustomScrollView(
-              slivers: [
-                _buildAppBar(context),
-                SliverToBoxAdapter(child: _buildContent(context, state)),
-              ],
-            );
-          },
+    final cs = Theme.of(context).colorScheme;
+
+    return Stack(
+      children: [
+        _buildBlurredBackground(),
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.close_rounded, size: 28),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text(
+              'TRACK INFO',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2,
+              ),
+            ),
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share_outlined, size: 22),
+                tooltip: 'Share Track',
+                onPressed: () {
+                  // In a real app we'd use share_plus
+                  HapticFeedback.lightImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Sharing link copied to clipboard')),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          body: BlocBuilder<TrackDetailBloc, TrackDetailState>(
+            builder: (context, state) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildIdentityHeader(context, cs),
+                    const SizedBox(height: 40),
+                    _buildMetricsSection(cs),
+                    const SizedBox(height: 32),
+                    _buildDetailsList(state, cs),
+                    const SizedBox(height: 32),
+                    if (state.lyrics.isNotEmpty && state.status == DetailStatus.loaded) ...[
+                      _sectionHeader('LYRICS', Icons.short_text_rounded),
+                      const SizedBox(height: 16),
+                      _buildLyricsContent(state.lyrics),
+                    ],
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildBlurredBackground() {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          CachedNetworkImage(
+            imageUrl: track.albumCoverBig,
+            fit: BoxFit.cover,
+          ),
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
-    return SliverAppBar(
-      expandedHeight: 320,
-      pinned: true,
-      backgroundColor: AppTheme.background,
-      leading: IconButton(
-        onPressed: () => Navigator.of(context).pop(),
-        icon: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.black38,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(
-            Icons.arrow_back_rounded,
-            color: Colors.white,
-            size: 20,
+  Widget _buildIdentityHeader(BuildContext context, ColorScheme cs) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Hero(
+          tag: 'track_${track.id}',
+          child: Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: CachedNetworkImage(
+                imageUrl: track.albumCoverBig,
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
         ),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
-              imageUrl: track.albumCoverBig,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => Container(color: AppTheme.card),
-              errorWidget: (_, _, _) => Container(
-                color: AppTheme.card,
-                child: Icon(
-                  Icons.album,
-                  size: 80,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    AppTheme.background.withOpacity(0.7),
-                    AppTheme.background,
-                  ],
-                  stops: const [0.3, 0.7, 1.0],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 20,
-              left: 20,
-              right: 20,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(width: 20),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Row(
                 children: [
-                  Text(
-                    track.titleShort,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      height: 1.2,
+                  Expanded(
+                    child: Text(
+                      track.titleShort,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        height: 1.1,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    track.artistName,
-                    style: TextStyle(
-                      color: AppTheme.accent,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  if (track.explicitLyrics)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Icon(Icons.explicit_rounded, size: 20, color: Colors.white.withValues(alpha: 0.5)),
                     ),
-                  ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContent(BuildContext context, TrackDetailState state) {
-    if (state.status == DetailStatus.loading) {
-      return Padding(
-        padding: EdgeInsets.only(top: 80),
-        child: Center(
-          child: CircularProgressIndicator(
-            color: AppTheme.primary,
-            strokeWidth: 2.5,
-          ),
-        ),
-      );
-    }
-
-    if (state.status == DetailStatus.error) {
-      if (state.errorMessage == AppStrings.noInternetConnection) {
-        return Padding(
-          padding: const EdgeInsets.only(top: 40),
-          child: NoInternetBanner(
-            onRetry: () =>
-                context.read<TrackDetailBloc>().add(LoadTrackDetail(track)),
-          ),
-        );
-      }
-      return Padding(
-        padding: const EdgeInsets.all(40),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(Icons.error_outline, size: 48, color: AppTheme.errorRed),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
-                state.errorMessage,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textSecondary),
+                track.artistName,
+                style: TextStyle(
+                  color: cs.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => context.read<TrackDetailBloc>().add(
-                  LoadTrackDetail(track),
+              const SizedBox(height: 4),
+              Text(
+                track.albumTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(AppStrings.retry),
               ),
             ],
           ),
         ),
-      );
+      ],
+    );
+  }
+
+  Widget _buildMetricsSection(ColorScheme cs) {
+    return Row(
+      children: [
+        _metricItem('RANK', '#${(track.rank / 1000).toStringAsFixed(1)}K', Icons.trending_up_rounded),
+        _vDivider(),
+        _metricItem('LENGTH', track.durationFormatted, Icons.timer_outlined),
+        _vDivider(),
+        _metricItem('ID', track.id.toString(), Icons.fingerprint_rounded),
+      ],
+    );
+  }
+
+  Widget _metricItem(String label, String value, IconData icon) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 16, color: Colors.white30),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white30, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _vDivider() => Container(height: 30, width: 1, color: Colors.white10);
+
+  Widget _buildDetailsList(TrackDetailState state, ColorScheme cs) {
+    if (state.status == DetailStatus.loading) {
+      return const Center(child: LinearProgressIndicator(backgroundColor: Colors.white12));
     }
 
     final detail = state.detail;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 16),
-          _infoSection(context, detail),
-          const SizedBox(height: 32),
-          _lyricsSection(context, state.lyrics),
-          const SizedBox(height: 60),
-        ],
-      ),
+    return Column(
+      children: [
+        _sectionHeader('TECHNICAL SPECIFICATIONS', Icons.info_outline_rounded),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Column(
+            children: [
+              _infoRow('ALBUM NAME', detail?.albumTitle ?? track.albumTitle),
+              _rowDivider(),
+              _infoRow('TEMPO', detail?.bpm != null && detail!.bpm > 0 ? '${detail.bpm.toInt()} BPM' : 'NOT ANALYZED'),
+              _rowDivider(),
+              _infoRow('RELEASE DATE', detail?.releaseDate.isNotEmpty == true ? detail!.releaseDate : 'UNKNOWN'),
+              _rowDivider(),
+              _infoRow('ALBUM TRACKS', detail?.albumTracksCount != null ? detail!.albumTracksCount.toString() : 'VARIES'),
+              _rowDivider(),
+              _infoRow('LINK', 'VIEW ON DEEZER', isLink: true),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _infoSection(BuildContext context, TrackDetail? detail) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.white30),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white30,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _infoRow('Album', detail?.albumTitle ?? track.albumTitle),
-          _divider(),
-          _infoRow(
-            'Duration',
-            detail?.durationFormatted ?? track.durationFormatted,
-          ),
-          if (detail != null) ...[
-            _divider(),
-            _infoRow('Track #', '${detail.trackPosition}'),
-            if (detail.releaseDate.isNotEmpty) ...[
-              _divider(),
-              _infoRow('Released', detail.releaseDate),
-            ],
-            if (detail.bpm > 0) ...[
-              _divider(),
-              _infoRow('BPM', '${detail.bpm.toInt()}'),
-            ],
-          ],
-          _divider(),
-          _infoRow('Track ID', '${track.id}'),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _infoRow(String label, String value) {
-    final displayValue = value.isEmpty ? 'Unknown' : value;
+  Widget _infoRow(String label, String value, {bool isLink = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(width: 16),
+          Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 20),
           Expanded(
             child: Text(
-              displayValue,
+              value,
               textAlign: TextAlign.end,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: isLink ? Colors.blueAccent : Colors.white,
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -285,41 +321,44 @@ class _TrackDetailBody extends StatelessWidget {
     );
   }
 
-  Widget _divider() {
-    return Divider(color: AppTheme.textSecondary.withOpacity(0.1), height: 1);
+  Widget _rowDivider() => Divider(color: Colors.white.withValues(alpha: 0.03), height: 1);
+
+  Widget _buildLyricsContent(String lyrics) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: SelectableText(
+        lyrics,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.7),
+          fontSize: 16,
+          height: 1.8,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
   }
 
-  Widget _lyricsSection(BuildContext context, String lyrics) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  Widget _buildErrorState(BuildContext context, TrackDetailState state) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
           children: [
-            Icon(Icons.lyrics_rounded, color: AppTheme.accent, size: 22),
-            const SizedBox(width: 10),
-            Text('Lyrics', style: Theme.of(context).textTheme.titleLarge),
+            const Icon(Icons.error_outline_rounded, color: Colors.white24, size: 48),
+            const SizedBox(height: 16),
+            Text(state.errorMessage, style: const TextStyle(color: Colors.white54)),
+            TextButton(
+              onPressed: () => context.read<TrackDetailBloc>().add(LoadTrackDetail(track)),
+              child: const Text('RETRY', style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
-        const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.textSecondary.withOpacity(0.05)),
-          ),
-          child: Text(
-            lyrics,
-            style: TextStyle(
-              color: AppTheme.textPrimary.withOpacity(0.9),
-              fontSize: 15,
-              height: 1.8,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

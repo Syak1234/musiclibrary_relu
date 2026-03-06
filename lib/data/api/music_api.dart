@@ -35,8 +35,8 @@ class MusicApi {
     : _dio = Dio(
         BaseOptions(
           baseUrl: ApiUrl.baseUrl,
-          connectTimeout: const Duration(seconds: 15),
-          receiveTimeout: const Duration(seconds: 15),
+          connectTimeout: const Duration(seconds: 20),
+          receiveTimeout: const Duration(seconds: 20),
         ),
       ) {
     _dio.interceptors.add(_RetryInterceptor(_dio));
@@ -54,6 +54,8 @@ class MusicApi {
       '/tracks',
       queryParameters: {'q': query, 'index': startIndex, 'limit': limit},
     );
+
+    print(response.data.toString());
     // log(response.data.toString());
     final data = response.data as Map<String, dynamic>;
     final tracks = data['tracks'] as List<dynamic>? ?? [];

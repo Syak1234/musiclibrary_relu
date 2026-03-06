@@ -9,5 +9,7 @@ class AppStrings {
   static const String searchFailed = 'Search failed. Try again.';
   static const String failedToLoadDetail = 'Failed to load track details.';
   static const String retry = 'Retry';
+  static const String noMusicFound =
+      'The music you\'re looking for doesn\'t exist.';
   // static const String failedToLoadLyrics = 'Failed to load lyrics.';
 }
