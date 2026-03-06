@@ -34,13 +34,16 @@ Sorting 500+ items by Title or Artist can cause frame drops (jank). We use Flutt
 2.  **Sticky Group Headers**: To help users navigate large libraries, we implemented sorting-based grouping. Letter-based sticky headers provide a clear "landmark" as the user scrolls.
 3.  **Declarative Navigation (GoRouter)**: Using `GoRouter` allows us to handle deep links and pass complex objects between screens with a clean, path-based URL structure, rather than fragile manual Navigator stacks.
 
----
-
 ## 🛠️ Issue Faced + Fix
 
-**The Problem**: During the development of the "Sticky Headers," we encountered a critical `SliverGeometry` crash where the `layoutExtent` exceeded the `paintExtent`. This happened because we were trying to pin a custom filter bar below a pinned AppBar manually.
+**The Problem**: The Deezer API was not returning lyrics for most tracks, resulting in a poor user experience when trying to view song lyrics.
 
-**The Fix**: I refactored the layout to use the native `SliverAppBar`'s `bottom` property for the Search and Filter bars. This leveraged Flutter's internal "Pinned Header" engine, which automatically handles the math for layout offsets, eliminating the crash permanently.
+**The Fix**: Integrated the **lrclib.net API** (`https://lrclib.net/api/get`) as the primary lyrics source. This open-source lyrics database provides:
+- Better coverage for popular and obscure tracks
+- Synchronized lyrics support (LRC format)
+- Free and reliable API without rate limiting issues
+
+The implementation queries lrclib.net with the artist name and track title to fetch lyrics, with a fallback message when lyrics are not found.
 
 ---
 

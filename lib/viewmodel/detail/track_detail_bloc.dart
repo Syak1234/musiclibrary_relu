@@ -27,7 +27,7 @@ class TrackDetailBloc extends Bloc<TrackDetailEvent, TrackDetailState> {
       final detail = _repository.getTrackDetail(event.track);
       emit(state.copyWith(status: DetailStatus.loaded, detail: detail));
 
-      // Fetch lyrics in background from LRCLIB
+     
       final lyrics = await _repository.getLyrics(
         event.track.artistName,
         event.track.titleShort,
@@ -80,7 +80,6 @@ class TrackDetailBloc extends Bloc<TrackDetailEvent, TrackDetailState> {
       }
     } catch (e) {
       print('URL Launch Error: $e');
-      // You could also emit an error state here if you want to show a SnackBar
     }
   }
 }

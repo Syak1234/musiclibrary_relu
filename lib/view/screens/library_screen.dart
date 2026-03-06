@@ -28,7 +28,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _search = TextEditingController();
   final _letter = ValueNotifier('');
   var _by = GroupBy.title;
-  final _lim = 50;
+  final limit = 50;
   bool _st = false;
   int? _cl;
   GroupBy? _cb;
@@ -40,7 +40,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    context.read<LibraryBloc>().add(LoadNextPage(limit: _lim));
+    context.read<LibraryBloc>().add(LoadNextPage(limit: limit));
   }
 
   void _onScroll() {
@@ -48,7 +48,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     if (_scroll.position.maxScrollExtent - _scroll.position.pixels < 800) {
       _st = true;
-      context.read<LibraryBloc>().add(LoadNextPage(limit: _lim));
+      context.read<LibraryBloc>().add(LoadNextPage(limit: limit));
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) _st = false;
       });
@@ -215,9 +215,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       height: 52,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.08,
-        ), // Solider background to prevent overlapping feel
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
