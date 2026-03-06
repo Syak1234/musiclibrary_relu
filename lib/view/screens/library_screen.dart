@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:musiclibrary_relu/core/utills/app_strings.dart';
@@ -40,22 +41,37 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _onScroll() {
-    if (_st) return;
-    if (_scroll.position.maxScrollExtent - _scroll.position.pixels < 600) {
+    if (_st || !mounted || !_scroll.hasClients) return;
+
+    if (_scroll.position.maxScrollExtent - _scroll.position.pixels < 800) {
       _st = true;
       context.read<LibraryBloc>().add(LoadNextPage(limit: _lim));
-      Future.delayed(const Duration(seconds: 2), () => _st = false);
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) _st = false;
+      });
     }
+
     if (_glet.isEmpty) return;
     final px = _scroll.position.pixels;
+
+    if (_goff.isEmpty || _glet.length != _goff.length) return;
+
     var l = _glet.first;
-    for (int i = 1; i < _goff.length; i++) {
-      if (_goff[i] <= px)
-        l = _glet[i];
-      else
-        break;
+    if (px <= 0) {
+      l = '';
+    } else {
+      for (int i = 0; i < _goff.length; i++) {
+        if (_goff[i] <= px) {
+          l = _glet[i];
+        } else {
+          break;
+        }
+      }
     }
-    if (_letter.value != l) _letter.value = l;
+
+    if (_letter.value != l) {
+      _letter.value = l;
+    }
   }
 
   void _open(Track t) => Navigator.of(
@@ -73,103 +89,172 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   Widget build(BuildContext ctx) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _top(ctx),
-            _bar(ctx),
-            _tabs(),
-            Expanded(child: _body()),
-          ],
-        ),
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Elegant Corner Glow (Pushed back to avoid search overlap)
+          Positioned(
+            top: -120,
+            right: -80,
+            child: Container(
+              width: 350,
+              height: 350,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.primary.withValues(alpha: 0.12),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(ctx),
+                _buildSearchBar(ctx),
+                _buildFilterTabs(),
+                Expanded(child: _buildListBody()),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _top(BuildContext ctx) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+  Widget _buildHeader(BuildContext ctx) => Padding(
+    padding: const EdgeInsets.fromLTRB(26, 24, 26, 6),
     child: Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Icon(Icons.library_music_rounded, color: AppTheme.primary, size: 28),
-        const SizedBox(width: 10),
-        Text(AppStrings.appName, style: Theme.of(ctx).textTheme.headlineLarge),
-        const Spacer(),
-        BlocBuilder<LibraryBloc, LibraryState>(
-          buildWhen: (p, c) => p.tracks.length != c.tracks.length,
-          builder: (_, s) => s.tracks.isEmpty
-              ? const SizedBox.shrink()
-              : Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${s.tracks.length} tracks',
-                    style: TextStyle(
-                      color: AppTheme.accent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: const Text(
+                'EXPLICIT',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
                 ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              AppStrings.appName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -1.2,
+              ),
+            ),
+          ],
         ),
+        const Spacer(),
+        _itemCount(),
       ],
     ),
   );
 
-  Widget _bar(BuildContext ctx) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-    child: TextField(
-      controller: _search,
-      onChanged: (v) => ctx.read<LibraryBloc>().add(SearchQueryChanged(v)),
-      decoration: InputDecoration(
-        hintText: AppStrings.search,
-        prefixIcon: Icon(Icons.search_rounded, color: AppTheme.textSecondary),
-        suffixIcon: BlocBuilder<LibraryBloc, LibraryState>(
-          buildWhen: (p, c) => p.isSearching != c.isSearching,
-          builder: (_, s) => !s.isSearching
-              ? const SizedBox.shrink()
-              : IconButton(
-                  onPressed: () {
-                    _search.clear();
-                    ctx.read<LibraryBloc>().add(ClearSearch());
-                  },
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: AppTheme.textSecondary,
-                  ),
+  Widget _itemCount() {
+    return BlocBuilder<LibraryBloc, LibraryState>(
+      buildWhen: (p, c) => p.tracks.length != c.tracks.length,
+      builder: (_, s) => s.tracks.isEmpty
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '${s.tracks.length} TITLES',
+                style: const TextStyle(
+                  color: Colors.white24,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
                 ),
-        ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildSearchBar(BuildContext ctx) => Padding(
+    padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+    child: Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(
+          alpha: 0.08,
+        ), // Solider background to prevent overlapping feel
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, color: AppTheme.primary, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _search,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+              onChanged: (v) =>
+                  ctx.read<LibraryBloc>().add(SearchQueryChanged(v)),
+              decoration: InputDecoration(
+                fillColor: Colors.transparent,
+                hintText: AppStrings.search,
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.3),
+                ),
+                border: InputBorder.none,
+                // isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          BlocBuilder<LibraryBloc, LibraryState>(
+            buildWhen: (p, c) => p.isSearching != c.isSearching,
+            builder: (context, s) => s.isSearching
+                ? GestureDetector(
+                    onTap: () {
+                      _search.clear();
+                      context.read<LibraryBloc>().add(ClearSearch());
+                    },
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white54,
+                      size: 18,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
       ),
     ),
   );
 
-  Widget _tabs() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+  Widget _buildFilterTabs() => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
     child: Row(
       children: [
-        Icon(
-          Icons.sort_by_alpha_rounded,
-          size: 16,
-          color: AppTheme.textSecondary,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Group by:',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(width: 10),
         _pill(
-          'Track',
+          'TRACKS',
           Icons.music_note_rounded,
           _by == GroupBy.title,
           () => setState(() {
@@ -177,9 +262,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
             _cs = null;
           }),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         _pill(
-          'Artist',
+          'ARTISTS',
           Icons.person_rounded,
           _by == GroupBy.artist,
           () => setState(() {
@@ -195,34 +280,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
       GestureDetector(
         onTap: fn,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          duration: const Duration(milliseconds: 250),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: on
-                ? AppTheme.primary.withValues(alpha: 0.85)
-                : AppTheme.card,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: on
-                  ? AppTheme.primary
-                  : AppTheme.textSecondary.withValues(alpha: 0.2),
-            ),
+            color: on ? AppTheme.primary : Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 13,
-                color: on ? Colors.white : AppTheme.textSecondary,
-              ),
-              const SizedBox(width: 5),
+              Icon(icon, size: 13, color: on ? Colors.black : Colors.white54),
+              const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: on ? Colors.white : AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                  color: on ? Colors.black : Colors.white54,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
                 ),
               ),
             ],
@@ -230,7 +305,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
       );
 
-  Widget _body() => BlocBuilder<LibraryBloc, LibraryState>(
+  Widget _buildListBody() => BlocBuilder<LibraryBloc, LibraryState>(
     builder: (ctx, s) {
       if (s.status == LibraryStatus.initial ||
           (s.status == LibraryStatus.loading && s.tracks.isEmpty))
@@ -244,26 +319,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
       }
       if (s.tracks.isEmpty && s.status == LibraryStatus.loaded)
         return _empty(s);
+
       return Stack(
         children: [
           CustomScrollView(
             controller: _scroll,
+            physics: const BouncingScrollPhysics(),
             slivers: [
               ...sortfn(s.tracks),
               if (s.status == LibraryStatus.loading)
                 SliverToBoxAdapter(child: _spin()),
-              if (s.status == LibraryStatus.error && s.tracks.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      s.errorMessage,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: AppTheme.errorRed, fontSize: 13),
-                    ),
-                  ),
-                ),
-              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
           ValueListenableBuilder<String>(
@@ -319,7 +385,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         if (last != null) {
           _glet.add(last);
           _goff.add(pos);
-          pos += StickyGroupHeader.height + (i - from) * 68.0;
+          pos += StickyGroupHeader.height + (i - from) * 72.0;
         }
         from = i;
         last = cur;
@@ -329,11 +395,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   List<Widget> sortfn(List<Track> tracks) {
     final all = _sorted(tracks);
-
     final out = <Widget>[];
     String? last;
     int from = 0;
-
     for (int i = 0; i <= all.length; i++) {
       final cur = i < all.length
           ? (_by == GroupBy.title
@@ -343,32 +407,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
       if (cur != last) {
         if (last != null) {
           final musiclist = all.sublist(from, i);
-          out
-            ..add(SliverToBoxAdapter(child: StickyGroupHeader(letter: last)))
-            ..add(
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (_, idx) => TweenAnimationBuilder<double>(
-                    key: ValueKey(musiclist[idx].id),
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: Duration(milliseconds: 280 + (idx % 7) * 40),
-                    curve: Curves.easeOut,
-                    builder: (_, v, ch) => Opacity(
-                      opacity: v,
-                      child: Transform.translate(
-                        offset: Offset(0, (1 - v) * 18),
-                        child: ch,
-                      ),
-                    ),
-                    child: TrackTile(
-                      track: musiclist[idx],
-                      onTap: () => _open(musiclist[idx]),
+          out.add(SliverToBoxAdapter(child: StickyGroupHeader(letter: last)));
+          out.add(
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (_, idx) => TweenAnimationBuilder<double>(
+                  key: ValueKey(musiclist[idx].id),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: Duration(milliseconds: 350 + (idx % 8) * 45),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, v, ch) => Opacity(
+                    opacity: v,
+                    child: Transform.translate(
+                      offset: Offset(0, (1 - v) * 20),
+                      child: ch,
                     ),
                   ),
-                  childCount: musiclist.length,
+                  child: TrackTile(
+                    track: musiclist[idx],
+                    onTap: () => _open(musiclist[idx]),
+                  ),
                 ),
+                childCount: musiclist.length,
               ),
-            );
+            ),
+          );
         }
         from = i;
         last = cur;
@@ -377,27 +440,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return out;
   }
 
-  Widget _fullLoader() => SizedBox.expand(
+  Widget _fullLoader() => Center(
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2.5),
-        const SizedBox(height: 20),
-        Text(
-          'Loading music...',
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2),
+        const SizedBox(height: 24),
+        const Text(
+          'Loading...',
+          style: TextStyle(
+            color: Colors.white24,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
+          ),
         ),
       ],
     ),
   );
 
   Widget _spin() => Padding(
-    padding: const EdgeInsets.all(32),
+    padding: const EdgeInsets.all(40),
     child: Center(
-      child: CircularProgressIndicator(
-        color: AppTheme.primary,
-        strokeWidth: 2.5,
-      ),
+      child: CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2),
     ),
   );
 
@@ -407,25 +472,36 @@ class _LibraryScreenState extends State<LibraryScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline_rounded, size: 48, color: AppTheme.errorRed),
-          const SizedBox(height: 16),
-          Text(
-            msg,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 48,
+            color: Colors.white24,
           ),
           const SizedBox(height: 20),
+          Text(
+            msg.toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () => ctx.read<LibraryBloc>().add(LoadNextPage()),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
+              backgroundColor: Colors.white10,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
             child: const Text(
-              AppStrings.retry,
-              style: TextStyle(color: Colors.white),
+              'RETRY',
+              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
             ),
           ),
         ],
@@ -434,41 +510,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
   );
 
   Widget _empty(LibraryState s) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            s.isSearching ? Icons.search_off_rounded : Icons.music_off_rounded,
-            size: 52,
-            color: AppTheme.textSecondary,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          s.isSearching
+              ? Icons.search_off_rounded
+              : Icons.library_books_rounded,
+          size: 56,
+          color: Colors.white12,
+        ),
+        const SizedBox(height: 20),
+        Text(
+          s.isSearching
+              ? 'NO RESULTS FOR "${s.searchQuery.toUpperCase()}"'
+              : 'EMPTY LIBRARY',
+          style: const TextStyle(
+            color: Colors.white38,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1,
           ),
-          const SizedBox(height: 16),
-          Text(
-            s.isSearching
-                ? 'No results for "${s.searchQuery}"'
-                : AppStrings.noTracksFound,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          if (s.isSearching) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Try a different song or artist name.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.textSecondary.withValues(alpha: 0.6),
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }

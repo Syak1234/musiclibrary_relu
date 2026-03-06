@@ -13,87 +13,95 @@ class TrackTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      splashColor: Colors.white.withValues(alpha: 0.05),
+      highlightColor: Colors.transparent,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         child: Row(
           children: [
-            _albumArt(),
-            const SizedBox(width: 14),
-            Expanded(child: _trackInfo(context)),
-            _duration(context),
+            _buildArtwork(),
+            const SizedBox(width: 16),
+            Expanded(child: _buildInfo(context)),
+            const SizedBox(width: 12),
+            _buildTrailing(),
           ],
         ),
       ),
     );
   }
 
-  Widget _albumArt() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: CachedNetworkImage(
-        imageUrl: track.albumCoverSmall,
-        width: 52,
-        height: 52,
-        memCacheWidth: 156,
-        memCacheHeight: 156,
-        fit: BoxFit.cover,
-        placeholder: (_, _) => Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(10),
+  Widget _buildArtwork() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.6),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
-          child: Icon(
-            Icons.music_note,
-            color: AppTheme.textSecondary,
-            size: 24,
-          ),
-        ),
-        errorWidget: (_, _, _) => Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            Icons.music_note,
-            color: AppTheme.textSecondary,
-            size: 24,
-          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: CachedNetworkImage(
+          imageUrl: track.albumCoverSmall,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          placeholder: (_, __) =>
+              Container(color: Colors.white.withValues(alpha: 0.05)),
+          errorWidget: (_, __, ___) =>
+              const Icon(Icons.music_note, color: Colors.white10),
         ),
       ),
     );
   }
 
-  Widget _trackInfo(BuildContext context) {
+  Widget _buildInfo(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          track.titleShort,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleMedium,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                track.titleShort,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         Text(
           track.artistName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.4),
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
         ),
       ],
     );
   }
 
-  Widget _duration(BuildContext context) {
+  Widget _buildTrailing() {
     return Text(
       track.durationFormatted,
-      style: Theme.of(context).textTheme.bodySmall,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.2),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 }

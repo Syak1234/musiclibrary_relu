@@ -70,7 +70,9 @@ class _TrackDetailBody extends StatelessWidget {
                   // In a real app we'd use share_plus
                   HapticFeedback.lightImpact();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sharing link copied to clipboard')),
+                    const SnackBar(
+                      content: Text('Sharing link copied to clipboard'),
+                    ),
                   );
                 },
               ),
@@ -92,7 +94,8 @@ class _TrackDetailBody extends StatelessWidget {
                     const SizedBox(height: 32),
                     _buildDetailsList(state, cs),
                     const SizedBox(height: 32),
-                    if (state.lyrics.isNotEmpty && state.status == DetailStatus.loaded) ...[
+                    if (state.lyrics.isNotEmpty &&
+                        state.status == DetailStatus.loaded) ...[
                       _sectionHeader('LYRICS', Icons.short_text_rounded),
                       const SizedBox(height: 16),
                       _buildLyricsContent(state.lyrics),
@@ -112,15 +115,10 @@ class _TrackDetailBody extends StatelessWidget {
     return Positioned.fill(
       child: Stack(
         children: [
-          CachedNetworkImage(
-            imageUrl: track.albumCoverBig,
-            fit: BoxFit.cover,
-          ),
+          CachedNetworkImage(imageUrl: track.albumCoverBig, fit: BoxFit.cover),
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.7),
-            ),
+            child: Container(color: Colors.black.withValues(alpha: 0.7)),
           ),
         ],
       ),
@@ -175,11 +173,6 @@ class _TrackDetailBody extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (track.explicitLyrics)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Icon(Icons.explicit_rounded, size: 20, color: Colors.white.withValues(alpha: 0.5)),
-                    ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -212,7 +205,11 @@ class _TrackDetailBody extends StatelessWidget {
   Widget _buildMetricsSection(ColorScheme cs) {
     return Row(
       children: [
-        _metricItem('RANK', '#${(track.rank / 1000).toStringAsFixed(1)}K', Icons.trending_up_rounded),
+        _metricItem(
+          'RANK',
+          '#${(track.rank / 1000).toStringAsFixed(1)}K',
+          Icons.trending_up_rounded,
+        ),
         _vDivider(),
         _metricItem('LENGTH', track.durationFormatted, Icons.timer_outlined),
         _vDivider(),
@@ -229,12 +226,21 @@ class _TrackDetailBody extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(color: Colors.white30, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+            style: const TextStyle(
+              color: Colors.white30,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -245,7 +251,9 @@ class _TrackDetailBody extends StatelessWidget {
 
   Widget _buildDetailsList(TrackDetailState state, ColorScheme cs) {
     if (state.status == DetailStatus.loading) {
-      return const Center(child: LinearProgressIndicator(backgroundColor: Colors.white12));
+      return const Center(
+        child: LinearProgressIndicator(backgroundColor: Colors.white12),
+      );
     }
 
     final detail = state.detail;
@@ -265,11 +273,26 @@ class _TrackDetailBody extends StatelessWidget {
             children: [
               _infoRow('ALBUM NAME', detail?.albumTitle ?? track.albumTitle),
               _rowDivider(),
-              _infoRow('TEMPO', detail?.bpm != null && detail!.bpm > 0 ? '${detail.bpm.toInt()} BPM' : 'NOT ANALYZED'),
+              _infoRow(
+                'TEMPO',
+                detail?.bpm != null && detail!.bpm > 0
+                    ? '${detail.bpm.toInt()} BPM'
+                    : 'NOT ANALYZED',
+              ),
               _rowDivider(),
-              _infoRow('RELEASE DATE', detail?.releaseDate.isNotEmpty == true ? detail!.releaseDate : 'UNKNOWN'),
+              _infoRow(
+                'RELEASE DATE',
+                detail?.releaseDate.isNotEmpty == true
+                    ? detail!.releaseDate
+                    : 'UNKNOWN',
+              ),
               _rowDivider(),
-              _infoRow('ALBUM TRACKS', detail?.albumTracksCount != null ? detail!.albumTracksCount.toString() : 'VARIES'),
+              _infoRow(
+                'ALBUM TRACKS',
+                detail?.albumTracksCount != null
+                    ? detail!.albumTracksCount.toString()
+                    : 'VARIES',
+              ),
               _rowDivider(),
               _infoRow('LINK', 'VIEW ON DEEZER', isLink: true),
             ],
@@ -303,7 +326,14 @@ class _TrackDetailBody extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white38,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(width: 20),
           Expanded(
             child: Text(
@@ -321,7 +351,8 @@ class _TrackDetailBody extends StatelessWidget {
     );
   }
 
-  Widget _rowDivider() => Divider(color: Colors.white.withValues(alpha: 0.03), height: 1);
+  Widget _rowDivider() =>
+      Divider(color: Colors.white.withValues(alpha: 0.03), height: 1);
 
   Widget _buildLyricsContent(String lyrics) {
     return Container(
@@ -349,11 +380,19 @@ class _TrackDetailBody extends StatelessWidget {
         padding: const EdgeInsets.all(40),
         child: Column(
           children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.white24, size: 48),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Colors.white24,
+              size: 48,
+            ),
             const SizedBox(height: 16),
-            Text(state.errorMessage, style: const TextStyle(color: Colors.white54)),
+            Text(
+              state.errorMessage,
+              style: const TextStyle(color: Colors.white54),
+            ),
             TextButton(
-              onPressed: () => context.read<TrackDetailBloc>().add(LoadTrackDetail(track)),
+              onPressed: () =>
+                  context.read<TrackDetailBloc>().add(LoadTrackDetail(track)),
               child: const Text('RETRY', style: TextStyle(color: Colors.white)),
             ),
           ],
