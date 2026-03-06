@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:musiclibrary_relu/core/utills/app_strings.dart';
@@ -7,7 +10,25 @@ import 'viewmodel/library/library_bloc.dart';
 import 'view/screens/library_screen.dart';
 
 void main() {
-  runApp(const MusicLibraryApp());
+  runZonedGuarded(
+    () {
+      ErrorWidget.builder = (FlutterErrorDetails details) {
+        return Material(
+          child: Center(
+            child: Text(
+              'An error occurred: ${details.exception}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        );
+      };
+      runApp(const MusicLibraryApp());
+    },
+    (error, stack) {
+      log(error.toString());
+      log(stack.toString());
+    },
+  );
 }
 
 class MusicLibraryApp extends StatelessWidget {

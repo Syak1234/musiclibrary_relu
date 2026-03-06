@@ -13,57 +13,6 @@ import 'track_detail_screen.dart';
 
 enum GroupBy { title, artist }
 
-class _FI extends StatefulWidget {
-  final int idx;
-  final Widget child;
-  const _FI({required super.key, required this.idx, required this.child});
-  @override
-  State<_FI> createState() => _FIS();
-}
-
-class _FIS extends State<_FI> with SingleTickerProviderStateMixin {
-  late final AnimationController _ac;
-  late final Animation<double> _op;
-  late final Animation<Offset> _sl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
-    _op = CurvedAnimation(parent: _ac, curve: Curves.easeOut);
-    _sl = Tween(begin: const Offset(0, 0.12), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _ac, curve: Curves.easeOutCubic));
-    Future.delayed(Duration(milliseconds: (widget.idx % 7) * 48), () {
-      if (mounted) _ac.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _ac.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: _op,
-    child: SlideTransition(position: _sl, child: widget.child),
-  );
-}
-
-class _HD extends SliverPersistentHeaderDelegate {
-  final String letter;
-  _HD(this.letter);
-  @override
-  double get minExtent => StickyGroupHeader.height;
-  @override
-  double get maxExtent => StickyGroupHeader.height;
-  @override
-  Widget build(BuildContext ctx, double o, bool ov) =>
-      StickyGroupHeader(letter: letter);
-  @override
-  bool shouldRebuild(_HD o) => o.letter != letter;
-}
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -74,12 +23,15 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen> {
   final _scroll = ScrollController();
   final _search = TextEditingController();
+  final _letter = ValueNotifier('');
   var _by = GroupBy.title;
   final _lim = 50;
   bool _st = false;
   int? _cl;
   GroupBy? _cb;
   List<Track>? _cs;
+  final _glet = <String>[];
+  final _goff = <double>[];
 
   @override
   void initState() {
@@ -95,6 +47,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
       context.read<LibraryBloc>().add(LoadNextPage(limit: _lim));
       Future.delayed(const Duration(seconds: 2), () => _st = false);
     }
+    if (_glet.isEmpty) return;
+    final px = _scroll.position.pixels;
+    var l = _glet.first;
+    for (int i = 1; i < _goff.length; i++) {
+      if (_goff[i] <= px) l = _glet[i]; else break;
+    }
+    if (_letter.value != l) _letter.value = l;
   }
 
   void _open(Track t) => Navigator.of(
@@ -105,6 +64,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void dispose() {
     _scroll.dispose();
     _search.dispose();
+    _letter.dispose();
     super.dispose();
   }
 
@@ -210,14 +170,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
           'Track',
           Icons.music_note_rounded,
           _by == GroupBy.title,
-          () => setState(() { _by = GroupBy.title; _cs = null; }),
+          () => setState(() {
+            _by = GroupBy.title;
+            _cs = null;
+          }),
         ),
         const SizedBox(width: 8),
         _pill(
           'Artist',
           Icons.person_rounded,
           _by == GroupBy.artist,
-          () => setState(() { _by = GroupBy.artist; _cs = null; }),
+          () => setState(() {
+            _by = GroupBy.artist;
+            _cs = null;
+          }),
         ),
       ],
     ),
@@ -264,7 +230,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _body() => BlocBuilder<LibraryBloc, LibraryState>(
     builder: (ctx, s) {
-      if (s.status == LibraryStatus.initial || (s.status == LibraryStatus.loading && s.tracks.isEmpty)) return _fullLoader();
+      if (s.status == LibraryStatus.initial ||
+          (s.status == LibraryStatus.loading && s.tracks.isEmpty))
+        return _fullLoader();
       if (s.status == LibraryStatus.error && s.tracks.isEmpty) {
         return s.errorMessage == AppStrings.noInternetConnection
             ? NoInternetBanner(
@@ -273,24 +241,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
             : _err(ctx, s.errorMessage);
       }
       if (s.tracks.isEmpty && s.status == LibraryStatus.loaded) return _empty();
-      return CustomScrollView(
-        controller: _scroll,
-        slivers: [
-          ...sortfn(s.tracks),
-          if (s.status == LibraryStatus.loading)
-            SliverToBoxAdapter(child: _spin()),
-          if (s.status == LibraryStatus.error && s.tracks.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  s.errorMessage,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.errorRed, fontSize: 13),
+      return Stack(
+        children: [
+          CustomScrollView(
+            controller: _scroll,
+            slivers: [
+              ...sortfn(s.tracks),
+              if (s.status == LibraryStatus.loading)
+                SliverToBoxAdapter(child: _spin()),
+              if (s.status == LibraryStatus.error && s.tracks.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      s.errorMessage,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppTheme.errorRed, fontSize: 13),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            ],
+          ),
+          ValueListenableBuilder<String>(
+            valueListenable: _letter,
+            builder: (_, v, __) => v.isEmpty
+                ? const SizedBox.shrink()
+                : StickyGroupHeader(letter: v),
+          ),
         ],
       );
     },
@@ -300,15 +278,48 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (_cs != null && _cl == t.length && _cb == _by) return _cs!;
     final a = List<Track>.from(t);
     _by == GroupBy.title
-        ? a.sort((x, y) => x.titleShort.toUpperCase().compareTo(y.titleShort.toUpperCase()))
+        ? a.sort(
+            (x, y) => x.titleShort.toUpperCase().compareTo(
+              y.titleShort.toUpperCase(),
+            ),
+          )
         : a.sort((x, y) {
-            final c = x.artistName.toUpperCase().compareTo(y.artistName.toUpperCase());
-            return c != 0 ? c : x.titleShort.toUpperCase().compareTo(y.titleShort.toUpperCase());
+            final c = x.artistName.toUpperCase().compareTo(
+              y.artistName.toUpperCase(),
+            );
+            return c != 0
+                ? c
+                : x.titleShort.toUpperCase().compareTo(
+                    y.titleShort.toUpperCase(),
+                  );
           });
     _cl = t.length;
     _cb = _by;
     _cs = a;
+    _mkoffs(a);
     return a;
+  }
+
+  void _mkoffs(List<Track> sorted) {
+    _glet.clear();
+    _goff.clear();
+    double pos = 0;
+    String? last;
+    int from = 0;
+    for (int i = 0; i <= sorted.length; i++) {
+      final cur = i < sorted.length
+          ? (_by == GroupBy.title ? sorted[i].groupLetter : sorted[i].artistGroupLetter)
+          : null;
+      if (cur != last) {
+        if (last != null) {
+          _glet.add(last);
+          _goff.add(pos);
+          pos += StickyGroupHeader.height + (i - from) * 68.0;
+        }
+        from = i;
+        last = cur;
+      }
+    }
   }
 
   List<Widget> sortfn(List<Track> tracks) {
@@ -326,18 +337,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
           : null;
       if (cur != last) {
         if (last != null) {
-          final g = all.sublist(from, i);
+          final musiclist = all.sublist(from, i);
           out
-            ..add(SliverPersistentHeader(pinned: true, delegate: _HD(last)))
+            ..add(SliverToBoxAdapter(child: StickyGroupHeader(letter: last)))
             ..add(
               SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (_, idx) => _FI(
-                    key: ValueKey(g[idx].id),
-                    idx: idx,
-                    child: TrackTile(track: g[idx], onTap: () => _open(g[idx])),
+                  (_, idx) => TweenAnimationBuilder<double>(
+                    key: ValueKey(musiclist[idx].id),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: Duration(milliseconds: 280 + (idx % 7) * 40),
+                    curve: Curves.easeOut,
+                    builder: (_, v, ch) => Opacity(
+                      opacity: v,
+                      child: Transform.translate(
+                        offset: Offset(0, (1 - v) * 18),
+                        child: ch,
+                      ),
+                    ),
+                    child: TrackTile(
+                      track: musiclist[idx],
+                      onTap: () => _open(musiclist[idx]),
+                    ),
                   ),
-                  childCount: g.length,
+                  childCount: musiclist.length,
                 ),
               ),
             );
@@ -355,7 +378,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       children: [
         CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2.5),
         const SizedBox(height: 20),
-        Text('Loading music...', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+        Text(
+          'Loading music...',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
       ],
     ),
   );
