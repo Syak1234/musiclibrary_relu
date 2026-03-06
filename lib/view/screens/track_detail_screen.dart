@@ -342,17 +342,9 @@ class _TrackDetailBodyState extends State<_TrackDetailBody> {
                     : 'VARIES',
               ),
               _rowDivider(),
+
               _infoRow(
                 'LINK',
-                'VIEW ON DEEZER',
-                isLink: true,
-                onTap: () => context.read<TrackDetailBloc>().add(
-                  OpenTrackLink(widget.track.link),
-                ),
-              ),
-              _rowDivider(),
-              _infoRow(
-                'PREVIEW',
                 'LISTEN TO 30S CLIP',
                 isLink: true,
                 onTap: () => context.read<TrackDetailBloc>().add(
