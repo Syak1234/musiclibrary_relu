@@ -1,16 +1,19 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide ConnectionState;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:musiclibrary_relu/core/utills/app_strings.dart';
+import '../../core/utills/routes.dart';
 import '../../viewmodel/library/library_bloc.dart';
 import '../../viewmodel/library/library_event.dart';
 import '../../viewmodel/library/library_state.dart';
+import '../../viewmodel/connection/connection_bloc.dart';
+import '../../viewmodel/connection/connection_state.dart';
 import '../../data/models/track.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/track_tile.dart';
 import '../widgets/sticky_group_header.dart';
 import '../widgets/no_internet_banner.dart';
-import 'track_detail_screen.dart';
 
 enum GroupBy { title, artist }
 
@@ -74,9 +77,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  void _open(Track t) => Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => TrackDetailScreen(track: t)));
+  void _open(Track t) => context.push(AppRoutes.detail, extra: t);
 
   @override
   void dispose() {
@@ -90,39 +91,58 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext ctx) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Elegant Corner Glow (Pushed back to avoid search overlap)
-          Positioned(
-            top: -120,
-            right: -80,
-            child: Container(
-              width: 350,
-              height: 350,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.primary.withValues(alpha: 0.12),
+      body: BlocBuilder<ConnectionBloc, ConnectionState>(
+        builder: (context, connectionState) {
+          return Stack(
+            children: [
+              // Elegant Corner Glow
+              Positioned(
+                top: -120,
+                right: -80,
+                child: Container(
+                  width: 350,
+                  height: 350,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
               ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
-          ),
 
-          SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(ctx),
-                _buildSearchBar(ctx),
-                _buildFilterTabs(),
-                Expanded(child: _buildListBody()),
-              ],
-            ),
-          ),
-        ],
+              if (connectionState is ConnectionDisconnected)
+                SafeArea(
+                  child: Column(
+                    children: [
+                      _buildHeader(ctx),
+                      Expanded(
+                        child: NoInternetBanner(
+                          onRetry: () =>
+                              context.read<LibraryBloc>().add(LoadNextPage()),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                SafeArea(
+                  bottom: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(ctx),
+                      _buildSearchBar(ctx),
+                      _buildFilterTabs(),
+                      Expanded(child: _buildListBody()),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

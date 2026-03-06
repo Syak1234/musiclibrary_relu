@@ -1,5 +1,7 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:musiclibrary_relu/core/utills/app_strings.dart';
+import 'package:musiclibrary_relu/core/utills/global_exception.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/repository/music_repository_interface.dart';
@@ -17,17 +19,23 @@ class TrackDetailBloc extends Bloc<TrackDetailEvent, TrackDetailState> {
     on<OpenTrackLink>(_onOpenTrackLink);
   }
 
-  void _onLoadTrackDetail(
+  Future<void> _onLoadTrackDetail(
     LoadTrackDetail event,
     Emitter<TrackDetailState> emit,
-  ) {
+  ) async {
     try {
       final detail = _repository.getTrackDetail(event.track);
+      emit(state.copyWith(status: DetailStatus.loaded, detail: detail));
+
+      // Fetch lyrics in background from LRCLIB
+      final lyrics = await _repository.getLyrics(
+        event.track.artistName,
+        event.track.titleShort,
+      );
+
       emit(
         state.copyWith(
-          status: DetailStatus.loaded,
-          detail: detail,
-          lyrics: AppStrings.noLyricsFound,
+          lyrics: lyrics ?? AppStrings.noLyricsFound,
         ),
       );
     } catch (e) {
@@ -40,15 +48,39 @@ class TrackDetailBloc extends Bloc<TrackDetailEvent, TrackDetailState> {
     }
   }
 
-  Future<void> _onShareTrack(ShareTrack event, Emitter<TrackDetailState> emit) async {
-    final text = 'Check out "${event.track.title}" by ${event.track.artistName} on Deezer: ${event.track.link}';
-    await Share.share(text);
+  Future<void> _onShareTrack(
+    ShareTrack event,
+    Emitter<TrackDetailState> emit,
+  ) async {
+    try {
+      HapticFeedback.lightImpact();
+      final text =
+          'Check out "${event.track.title}" by ${event.track.artistName} on Deezer: ${event.track.previewUrl}';
+      await Share.share(text);
+    } catch (e) {
+      throw GlobalException(message: 'Failed to share track');
+    }
   }
 
-  Future<void> _onOpenTrackLink(OpenTrackLink event, Emitter<TrackDetailState> emit) async {
-    final uri = Uri.parse(event.link);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+  Future<void> _onOpenTrackLink(
+    OpenTrackLink event,
+    Emitter<TrackDetailState> emit,
+  ) async {
+    try {
+      if (event.link.isEmpty) return;
+      
+      final uri = Uri.parse(event.link);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      
+      if (!launched) {
+        throw 'Could not launch $uri';
+      }
+    } catch (e) {
+      print('URL Launch Error: $e');
+      // You could also emit an error state here if you want to show a SnackBar
     }
   }
 }

@@ -5,5 +5,6 @@ abstract class MusicRepositoryInterface {
   Future<List<Track>> loadPage(int pageIndex, {int? limit});
   Future<List<Track>> searchTracks(String searchQuery, int startIndex);
   TrackDetail getTrackDetail(Track track);
+  Future<String?> getLyrics(String artist, String trackTitle);
   void dispose();
 }

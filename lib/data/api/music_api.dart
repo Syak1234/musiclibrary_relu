@@ -62,6 +62,19 @@ class MusicApi {
     return tracks.cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>?> fetchLyrics(String artist, String title) async {
+    try {
+      final response = await _dio.get(
+        ApiUrl.lyricsUrl,
+        queryParameters: {'artist_name': artist, 'track_name': title},
+      );
+      return response.data as Map<String, dynamic>?;
+    } catch (e) {
+      print('Lyrics fetch error: $e');
+      return null;
+    }
+  }
+
   void dispose() {
     _dio.close();
   }

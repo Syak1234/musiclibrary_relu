@@ -124,6 +124,26 @@ class MusicRepository implements MusicRepositoryInterface {
     return TrackDetail.fromTrack(track);
   }
 
+  @override
+  Future<String?> getLyrics(String artist, String trackTitle) async {
+    try {
+      final data = await _api.fetchLyrics(artist, trackTitle);
+      if (data == null) return null;
+
+      final plain = data['plainLyrics'] as String?;
+      if (plain != null && plain.trim().isNotEmpty) return plain;
+
+      final synced = data['syncedLyrics'] as String?;
+      if (synced != null && synced.trim().isNotEmpty) {
+        return synced.replaceAll(RegExp(r'\[\d{2}:\d{2}.\d{2,3}\]\s*'), '');
+      }
+
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   bool _isConnectionError(DioException e) {
     return e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.connectionTimeout ||
